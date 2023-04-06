@@ -177,21 +177,18 @@ def position_birth_search(position, age, cur, conn):
 #     the passed year. 
 
 def make_winners_table(data, cur, conn):
-    #winners = []
-    #for win in data['seasons']:
+    winners = []
+    for win in data['seasons']:
+        if 'name' in win:
         #name = win['name']
-        #if win not in winners:
-            #winners.append(win)
-    #cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
-    #for i in range(len(winners)):
-        #for winners in data['seasons']:
-        #cur.execute("INSERT OR IGNORE INTO Winners (id, name) VALUES (?,?)",(i, winners[i]))
-    #conn.commit()
-    cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
-    for team in data['seasons']:
-        if 'name' in team:
-            cur.execute("INSERT OR IGNORE INTO Winners (id, name) VALUES (?, ?)", (team['id'], team['name']))
+            if win not in winners:
+                winners.append(win)
+        cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
+        for i in range(len(winners)):
+            #for winners in data['seasons']:
+            cur.execute("INSERT OR IGNORE INTO Winners (id, name) VALUES (?,?)",(i, winners[i]))
     conn.commit()
+   
 
 def make_seasons_table(data, cur, conn):
     cur.execute("CREATE TABLE IF NOT EXISTS Seasons (id INTEGER PRIMARY KEY, winner_id TEXT UNIQUE, end_year INT UNIQUE)")
@@ -279,10 +276,10 @@ class TestAllMethods(unittest.TestCase):
     def test_make_winners_table(self):
         self.cur2.execute('SELECT * from Winners')
         winners_list = self.cur2.fetchall()
-
-        #self.assertEqual(len(winners_list[0]),5)
+        self.assertEqual(len(winners_list),5)
         self.assertIs(type(winners_list[0][0]), int)
         self.assertIs(type(winners_list[0][1]), str)
+     
 
     def test_make_seasons_table(self):
         self.cur2.execute('SELECT * from Seasons')
@@ -294,14 +291,23 @@ class TestAllMethods(unittest.TestCase):
         self.assertIs(type(seasons_list[0][1]), int)
 
     def test_winners_since_search(self):
-
+        # test 1
         json_data = {"teams":[{"id":1,"name":"Manchester United"},{"id":2,"name":"Liverpool"}],
                  "seasons":[{"id":1,"winner":"Manchester United","endYear":2020},{"id":2,"winner":"Liverpool","endYear":2019},
                             {"id":3,"winner":"Liverpool","endYear":2018},{"id":4,"endYear":2017}]}
-        make_winners_table(json_data, self.cur, self.conn)
-        make_seasons_table(json_data, self.cur, self.conn)
-        result = winners_since_search("2018", self.cur, self.conn)
-        #assert result == {"Manchester United": 1, "Liverpool": 2}
+        make_winners_table(json_data, self.cur2, self.conn2)
+        make_seasons_table(json_data, self.cur2, self.conn2)
+        result = winners_since_search("2018", self.cur2, self.conn2)
+        assert result == {"Manchester United": 1, "Liverpool": 2}
+
+        # test 2
+        data = {"teams":[{"id":1,"name":"Manchester United"},{"id":2,"name":"Liverpool"}],
+                 "seasons":[{"id":1,"winner":"Manchester United","endYear":2020},{"id":2,"winner":"Liverpool","endYear":2019},
+                            {"id":3,"winner":"Liverpool","endYear":2018},{"id":4,"endYear":2017}]}
+        make_winners_table(data, self.cur2, self.conn2)
+        make_seasons_table(data, self.cur2, self.conn2)
+        result = winners_since_search("2018", self.cur2, self.conn2)
+        assert result == {"Manchester United": 1, "Liverpool": 2}
 
 
 def main():
