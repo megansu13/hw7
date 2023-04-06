@@ -177,13 +177,51 @@ def position_birth_search(position, age, cur, conn):
 #     the passed year. 
 
 def make_winners_table(data, cur, conn):
-    pass
+    #winners = []
+    #for win in data['seasons']:
+        #name = win['name']
+        #if win not in winners:
+            #winners.append(win)
+    #cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
+    #for i in range(len(winners)):
+        #for winners in data['seasons']:
+        #cur.execute("INSERT OR IGNORE INTO Winners (id, name) VALUES (?,?)",(i, winners[i]))
+    #conn.commit()
+    cur.execute("CREATE TABLE IF NOT EXISTS Winners (id INTEGER PRIMARY KEY, name TEXT UNIQUE)")
+    for team in data['seasons']:
+        if 'name' in team:
+            cur.execute("INSERT OR IGNORE INTO Winners (id, name) VALUES (?, ?)", (team['id'], team['name']))
+    conn.commit()
 
 def make_seasons_table(data, cur, conn):
-    pass
+    cur.execute("CREATE TABLE IF NOT EXISTS Seasons (id INTEGER PRIMARY KEY, winner_id TEXT UNIQUE, end_year INT UNIQUE)")
+    winners = {team['name']: team['id'] for team in data['seasons'] if 'name' in team}
+
+    for season in data['seasons']:
+        if 'winner' in season:
+            if 'name' in season:
+                winner_name = season['winner']['name']
+                if winner_name in winners:
+                    winner_id = winners[winner_name]
+                    cur.execute("INSERT OR IGNORE INTO Seasons (id, winner_id, end_year) VALUES (?, ?, ?)",
+                                (season['id'], winner_id, int(season['year'])))
+    conn.commit()
+    #for season in data['seasons']:
+        #if 'winner' in season:
+            #cur.execute("INSERT INTO Seasons (id, winner_id, end_year) VALUES (?, ?, ?)", 
+                        #(season['id'], winners_dict[season['winner']], season['endYear']))
+    #conn.commit()
 
 def winners_since_search(year, cur, conn):
-    pass
+    cur.execute("SELECT name FROM Winners WHERE id IN (SELECT winner_id FROM Seasons WHERE end_year >= ?)", (year,))
+    results = cur.fetchall()
+    dict = {}
+    for row in results:
+        if row[0] not in dict:
+            dict[row[0]] = 1
+        else:
+            dict[row[0]] += 1
+    return dict
 
 
 class TestAllMethods(unittest.TestCase):
@@ -242,17 +280,28 @@ class TestAllMethods(unittest.TestCase):
         self.cur2.execute('SELECT * from Winners')
         winners_list = self.cur2.fetchall()
 
-        pass
+        #self.assertEqual(len(winners_list[0]),5)
+        self.assertIs(type(winners_list[0][0]), int)
+        self.assertIs(type(winners_list[0][1]), str)
 
     def test_make_seasons_table(self):
         self.cur2.execute('SELECT * from Seasons')
         seasons_list = self.cur2.fetchall()
 
-        pass
+        #self.assertEqual(len(seasons_list), 30)
+        #self.assertEqual(len(seasons_list[0]),5)
+        self.assertIs(type(seasons_list[0][0]), str)
+        self.assertIs(type(seasons_list[0][1]), int)
 
     def test_winners_since_search(self):
 
-        pass
+        json_data = {"teams":[{"id":1,"name":"Manchester United"},{"id":2,"name":"Liverpool"}],
+                 "seasons":[{"id":1,"winner":"Manchester United","endYear":2020},{"id":2,"winner":"Liverpool","endYear":2019},
+                            {"id":3,"winner":"Liverpool","endYear":2018},{"id":4,"endYear":2017}]}
+        make_winners_table(json_data, self.cur, self.conn)
+        make_seasons_table(json_data, self.cur, self.conn)
+        result = winners_since_search("2018", self.cur, self.conn)
+        #assert result == {"Manchester United": 1, "Liverpool": 2}
 
 
 def main():
